@@ -1,0 +1,5 @@
+---
+- src: geerlingguy.repo-remi
+- src: geerlingguy.java
+- src: geerlingguy.mysql
+- src: geerlingguy.postgresql

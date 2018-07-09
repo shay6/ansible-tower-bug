@@ -1,0 +1,12 @@
+---
+- name: Ensure plugins folder.
+  file:
+    path: "{{ sonar_plugins_dir }}"
+    state: directory
+
+- name: Install Sonar plugins.
+  get_url:
+    url: "{{ item }}"
+    dest: "{{ sonar_plugins_dir }}"
+  with_items: "{{ sonar_plugins_url }}"
+  notify: restart sonar

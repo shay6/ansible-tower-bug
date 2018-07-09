@@ -1,0 +1,112 @@
+---
+- name: Ensure sonar group is created.
+  group:
+    name: "{{ sonar_group }}"
+    state: present
+
+- name: Ensure sonar user is created.
+  user:
+    name: "{{ sonar_user }}"
+    group: "{{ sonar_group }}"
+    createhome: no
+    home: /usr/local/sonar
+
+- name: Verify Sonar installation.
+  stat: path=/usr/local/sonar/bin/linux-x86-64/sonar.sh
+  register: sonar_installed
+
+- name: Download Sonar.
+  get_url:
+    url: "{{ sonar_download_url }}"
+    dest: "{{ workspace }}/{{ sonar_version_directory }}.zip"
+    validate_certs: "{{ sonar_download_validate_certs }}"
+  when: sonar_installed.stat.exists == False
+
+- name: Unzip Sonar.
+  unarchive:
+    src: "{{ workspace }}/{{ sonar_version_directory }}.zip"
+    dest: /usr/local/
+    copy: no
+    creates: /usr/local/sonar/COPYING
+
+- name: Move Sonar into place.
+  shell: >
+    mv /usr/local/{{ sonar_version_directory }} /usr/local/sonar
+    creates=/usr/local/sonar/COPYING
+  when: sonar_install_method == 'move'
+
+- name: Check /usr/local/sonar is a directory.
+  file:
+    path: /usr/local/sonar
+    state: directory
+  when: (sonar_install_method == 'move' or sonar_install_method == 'copy')
+
+- name: Copy Sonar into place.
+  shell: >
+    cp -r /usr/local/{{ sonar_version_directory }}/* /usr/local/sonar
+    creates=/usr/local/sonar/COPYING
+  when: sonar_install_method == 'copy'
+
+- name: Clean the origin of the copy.
+  file:
+    path: /usr/local/{{ sonar_version_directory }}
+    state: absent
+  when: sonar_install_method == 'copy'
+
+- name: Add sonar symlink to the installed version.
+  file:
+    src: /usr/local/{{ sonar_version_directory }}
+    dest: /usr/local/sonar
+    state: link
+  when: sonar_install_method == 'link'
+
+- include: configure.yml
+- include: plugins.yml
+
+- name: Symlink sonar bin.
+  file:
+    src: /usr/local/sonar/bin/linux-x86-64/sonar.sh
+    dest: /usr/bin/sonar
+    state: link
+  register: sonar_symlink
+
+- name: Add sonar as init script for service management.
+  file:
+    src: /usr/local/sonar/bin/linux-x86-64/sonar.sh
+    dest: /etc/init.d/sonar
+    state: link
+  when: "ansible_service_mgr != 'systemd'"
+
+- name: Copy SonarQube systemd unit file into place (for systemd systems).
+  template:
+    src: sonar.unit.j2
+    dest: /etc/systemd/system/sonar.service
+    owner: root
+    group: root
+    mode: 0755
+  when: "ansible_service_mgr == 'systemd'"
+
+- name: Ensure ownership of SonarQube objects.
+  file:
+    path: /usr/local/sonar
+    owner: "{{ sonar_user }}"
+    group: "{{ sonar_group }}"
+    recurse: yes
+
+- name: Ensure Sonar is running and set to start on boot.
+  service: name=sonar state=started enabled=yes
+
+- name: Ensure Sonar is started.
+  wait_for:
+    path: /usr/local/sonar/logs/sonar.log
+    delay: 10
+    search_regex: '.*SonarQube is up'
+  when: sonar_symlink.changed
+
+- name: Make sure Sonar is responding on the configured port.
+  wait_for: port=9000 delay=3 timeout=300
+
+- name: Clean workspace.
+  file:
+    path: "{{ workspace }}/{{ sonar_version_directory }}.zip"
+    state: absent
