@@ -5,12 +5,10 @@
   tasks:
 
   - include_role:
-      name: geerlingguy.postgresql
-    when: sonar == "db"
+      name: shay_a
 
   - include_role:
       name: "{{ item }}"
-    when: sonar == "ui"
-    with_items:
-    - geerlingguy.java
-    - sonar
+    loop:
+    - shay_b
+    - shay_c

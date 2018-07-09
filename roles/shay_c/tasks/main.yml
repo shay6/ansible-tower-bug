@@ -1,0 +1,9 @@
+---
+- name: test creating file
+  file:
+    path: /tmp/test_c
+    state: touch
+
+- name: edit current date to test file
+  shell: echo $(date) >> /tmp/test_c
+
