@@ -1,4 +1,0 @@
----
-- name: edit current date to /tmp/test_b file
-  shell: echo $(date) >> /tmp/test_b
-

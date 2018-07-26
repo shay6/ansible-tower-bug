@@ -5,16 +5,5 @@
   tasks:
 
   - include_role:
-      name: "{{ item }}"
-    loop:
-    - shay_a
-    - shay_b
-
-  - include_role:
-      name: geerlingguy.postgresql
-
-  - include_role:
       name: geerlingguy.java
 
-  - include_role:
-      name: sonar
